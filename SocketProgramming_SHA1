@@ -1,0 +1,142 @@
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <string.h>
+#include <stdlib.h>
+#include "sha1.h"
+
+#define SERVER_PORT 47500
+#define MAX_LINE 12288
+
+#define FLAG_HELLO 		((unsigned char)(0x01 << 7))
+#define FLAG_INSTRUCTION 	((unsigned char)(0x01 << 6))
+#define FLAG_RESPONSE		((unsigned char)(0x01 << 5))
+#define FLAG_TERMINATE		((unsigned char)(0x01 << 4))
+
+#define OP_ECHO 		((unsigned char)(0x00))
+#define OP_INCREMENT 		((unsigned char)(0x01))
+#define OP_DECREMENT 		((unsigned char)(0x02))
+#define OP_PUSH			((unsigned char)(0x03))
+#define OP_DIGEST 		((unsigned char)(0x04))
+
+struct hw_packet {
+	unsigned char flag; // HIRT
+	unsigned char operation; // 8-bits operation
+	unsigned short data_len; // 16 bits data length
+	unsigned int seq_num; // 32bits
+	char data[1024]; // optional data
+};
+
+void SHA1(char *,const char *, int);
+
+int main(int argc, char *argv[]) {
+
+	FILE *fp;
+	struct hostent *hp;
+	struct sockaddr_in sin;
+	char *host;
+	char buf[MAX_LINE];
+	int client_sockfd; 
+	int len;
+// 	char *ptr[MAX_LINE];
+	if (argc == 2) {
+		host = argv[1];
+	}
+	else {
+		fprintf(stderr, "usage: simplex-talk host\n");
+		exit(1);
+	}
+
+	/* translate Student ID into Peer's IP address */
+	hp = gethostbyname(host);
+	if (!hp) {
+		fprintf(stderr, "simplex-talk: unknown host: %s\n", host);
+		exit(1);
+	}
+
+	/* build address data structure */
+	bzero((char *)&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
+	sin.sin_port = htons(SERVER_PORT);
+
+	/* active open */
+	if ((client_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("simplex-talk: socket");
+		exit(1);
+	}
+
+	if (connect(client_sockfd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+		perror("simple-talk: connect");
+		close(client_sockfd);
+		exit(1);
+	}
+	else {
+	printf("\n *** START ***\n");
+	}
+
+	/* main loop: get and send lines of text */
+	
+	unsigned int value;
+	struct hw_packet buf_struct;
+	buf_struct.flag = FLAG_HELLO;
+	buf_struct.operation = OP_ECHO;
+	buf_struct.data_len = 4;
+	buf_struct.seq_num = 0;
+	value = 2014190518;
+	memcpy(buf_struct.data, &value, sizeof(unsigned int));
+
+	struct hw_packet buf_struct_rcv;
+	buf_struct_rcv.flag;
+	buf_struct_rcv.operation;
+	buf_struct_rcv.data_len;
+	buf_struct.seq_num;
+	
+	struct hw_packet buf_struct_res;
+	buf_struct_res.flag = FLAG_RESPONSE;
+	buf_struct_res.operation = OP_PUSH;
+	buf_struct_res.data_len = 0;
+	buf_struct_res.seq_num = 0;
+
+	struct hw_packet buf_struct_dig;
+	buf_struct_dig.flag = FLAG_RESPONSE;
+	buf_struct_dig.operation = OP_DIGEST;
+	buf_struct_dig.data_len = 20;
+	buf_struct_dig.seq_num = 0;
+	
+	send(client_sockfd, &buf_struct,sizeof(buf_struct),0);
+	printf("successfully sending hello message\n");
+	printf("waiting for the first instruction message...\n");
+
+	recv(client_sockfd, &buf_struct_rcv, sizeof(buf_struct_rcv),0);
+	printf("successfully connected\n");
+	
+//	int i=0;
+//	char *buf_store;
+    char* ptr_buf = buf;
+	while(buf_struct_rcv.operation == OP_PUSH){
+		recv(client_sockfd, &buf_struct_rcv, sizeof(buf_struct_rcv), 0);
+		char *buf_store = (char*)malloc(sizeof(char)*buf_struct_rcv.data_len);	
+		memcpy(buf_store, buf_struct_rcv.data, buf_struct_rcv.data_len);
+//	strcat(buf,buf_store);
+    memcpy(ptr_buf, buf_store, sizeof(buf_store));
+    ptr_buf += sizeof(buf_store);
+		memset(buf_store, 0, sizeof(buf_store));
+		//ptr[i++] = buf_store;	
+		send(client_sockfd, &buf_struct_res, sizeof(buf_struct_res),0);
+	}
+
+	printf("********received DIGEST OPERATION********\n");	
+
+	char *hash_out = (char*)malloc(sizeof(char)*buf_struct_dig.data_len);
+	SHA1(hash_out, buf, sizeof(buf));	
+	memcpy(buf_struct_dig.data,hash_out, sizeof(hash_out));
+	printf("hashout : %s \nbuf_struct_dig : %s\n",hash_out,buf_struct_dig.data);
+	send(client_sockfd, &buf_struct_dig, sizeof(buf_struct_dig),0);
+
+	if(buf_struct_rcv.flag == FLAG_TERMINATE){
+	exit(1);
+	}
+}
