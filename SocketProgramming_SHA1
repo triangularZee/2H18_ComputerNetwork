@@ -120,9 +120,9 @@ int main(int argc, char *argv[]) {
 		recv(client_sockfd, &buf_struct_rcv, sizeof(buf_struct_rcv), 0);
 		char *buf_store = (char*)malloc(sizeof(char)*buf_struct_rcv.data_len);	
 		memcpy(buf_store, buf_struct_rcv.data, buf_struct_rcv.data_len);
-//	strcat(buf,buf_store);
-    memcpy(ptr_buf, buf_store, sizeof(buf_store));
-    ptr_buf += sizeof(buf_store);
+//		strcat(buf,buf_store);
+    		memcpy(ptr_buf, buf_store, sizeof(buf_store));
+ 		ptr_buf += sizeof(buf_store);
 		memset(buf_store, 0, sizeof(buf_store));
 		//ptr[i++] = buf_store;	
 		send(client_sockfd, &buf_struct_res, sizeof(buf_struct_res),0);
