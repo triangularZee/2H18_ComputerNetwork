@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	buf_struct.operation = OP_ECHO;
 	buf_struct.data_len = 4;
 	buf_struct.seq_num = 0;
-	value = 2014190518;
+	value = ;
 	memcpy(buf_struct.data, &value, sizeof(unsigned int));
 
 	struct hw_packet buf_struct_rcv;
